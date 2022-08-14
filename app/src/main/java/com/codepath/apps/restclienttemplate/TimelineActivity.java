@@ -22,6 +22,7 @@ import org.json.JSONException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import okhttp3.Headers;
 
@@ -34,8 +35,6 @@ public class TimelineActivity extends AppCompatActivity {
     TweetsAdapter adapter;
 
     private SwipeRefreshLayout swipeContainer;
-    // Store a member variable for the listener
-    private EndlessRecyclerViewScrollListener scrollListener;
     private TweetDAO tweetDAO;
 
     @Override
@@ -44,11 +43,11 @@ public class TimelineActivity extends AppCompatActivity {
         setContentView(R.layout.activity_timeline);
 
         // Find the toolbar view inside the activity layout
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        Toolbar toolbar = findViewById(R.id.toolbar);
         // Sets the Toolbar to act as the ActionBar for this Activity window.
         // Make sure the toolbar exists in the activity and is not null
         setSupportActionBar(toolbar);
-        getSupportActionBar().setTitle("");
+        Objects.requireNonNull(getSupportActionBar()).setTitle("");
 
         // Lookup the swipe container view
 
@@ -67,31 +66,24 @@ public class TimelineActivity extends AppCompatActivity {
 
         swipeContainer = findViewById(R.id.swipeContainer);
 
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                Log.i(TAG, "Showing data from database");
-                List<TweetWithUser> tweetWithUsers = tweetDAO.recentItems();
-                List<Tweet> tweetFromDB = TweetWithUser.getTweetList(tweetWithUsers);
-                adapter.clear();
-                adapter.addTweets(tweetFromDB);
+        AsyncTask.execute(() -> {
+            Log.i(TAG, "Showing data from database");
+            List<TweetWithUser> tweetWithUsers = tweetDAO.recentItems();
+            List<Tweet> tweetFromDB = TweetWithUser.getTweetList(tweetWithUsers);
+            adapter.clear();
+            adapter.addTweets(tweetFromDB);
 
-            }
         });
 
 
-        swipeContainer.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override
-            public void onRefresh() {
-                populateHomeTimeline();
-            }
-        });
+        swipeContainer.setOnRefreshListener(this::populateHomeTimeline);
         swipeContainer.setColorSchemeResources(android.R.color.holo_blue_bright,
                 android.R.color.holo_green_light,
                 android.R.color.holo_orange_light,
                 android.R.color.holo_red_light);
 
-        scrollListener = new EndlessRecyclerViewScrollListener(linearLayoutManager) {
+        // Store a member variable for the listener
+        EndlessRecyclerViewScrollListener scrollListener = new EndlessRecyclerViewScrollListener(linearLayoutManager) {
             @Override
             public void onLoadMore(int page, int totalItemsCount, RecyclerView view) {
                 loadMoreData();
@@ -124,16 +116,13 @@ public class TimelineActivity extends AppCompatActivity {
                     // Now we call setRefreshing(false) to signal refresh has finished
                     swipeContainer.setRefreshing(false);
 
-                    AsyncTask.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.i(TAG, "Saving data from database");
-                            List<User> usersFromNetwork =User.fromJsonArrary(tweetsFromNetwork);
-                            tweetDAO.insertModel(usersFromNetwork.toArray(new User[0]));
-                            tweetDAO.insertModel(tweetsFromNetwork.toArray(new Tweet[0]));
+                    AsyncTask.execute(() -> {
+                        Log.i(TAG, "Saving data from database");
+                        List<User> usersFromNetwork =User.fromJsonArrary(tweetsFromNetwork);
+                        tweetDAO.insertModel(usersFromNetwork.toArray(new User[0]));
+                        tweetDAO.insertModel(tweetsFromNetwork.toArray(new Tweet[0]));
 
 
-                        }
                     });
                 } catch (JSONException e) {
                     Log.e(TAG, "Json Exception: ",e);
